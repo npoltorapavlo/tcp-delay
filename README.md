@@ -1,10 +1,8 @@
-# Sender-side
+# TCP algorithms
 
-## Nagle's algorithm
+## Nagle's algorithm (sender)
 
-* Sender waits for the peer ACK before sending partial packets, while coalesces data into a larger packet.
-
-#### ex.
+* If there is unacknowledged data, then the sending TCP buffers all user data (regardless of the PSH bit), until the outstanding data has been acknowledged or until the TCP can send a full-sized segment (Eff.snd.MSS bytes). (https://www.ietf.org/rfc/rfc1122.txt)
 
 ```shell script
 ./server 55555 1024 1024 1024 1024 5579 79 0 1
@@ -22,13 +20,45 @@
 12:35:12.247017 55555 > 52746: ack 5580, win 469, length 79
 ```
 
-## ???
+## ACK delays (receiver)
 
-* TCP sender waits 200ms to send data when receiver transmits small window.
- SO_RCVBUF smaller than stream MSS and smaller than maximum advertised window.
- Sender waits after receiving ACK before transmitting more payload.
+* Receiver waits for a packet on which the ACK can be piggybacked, if not getting it, sends the ACK delayed (up to 500 ms).
+ Timer is reset after every recv.
 
-#### ex.
+## TCP window (receiver)
+
+```
+RCV.NXT right edge
+     |  |
+   _______ RCV.BUFF
+12|34|56|7|89 - not available
+|  |  |  |
+|  |  |  available but not yet advertised
+|  |  advertised to sender (RCV.WND)
+|  received but not yet consumed (RCV.USER)
+received and consumed
+```
+
+* Receiver avoids advancing the right window edge in small increments (SWS avoidance).
+It still ACK-s the received data, such that the sender knows not to retransmit it.
+
+* Receiver keeps `RCV.NXT+RCV.WND` fixed until:
+```
+RCV.BUFF - RCV.USER - RCV.WND >= min( Fr * RCV.BUFF, Eff.snd.MSS )
+```
+
+* When the inequality is satisfied, `RCV.WND` is set to `RCV.BUFF-RCV.USER`.
+ (https://www.ietf.org/rfc/rfc1122.txt)
+
+# Issues
+
+## SO_RCVBUF smaller than MSS
+
+* If receiver does `connect()`, or `accept()`, before calling `setsockopt(SO_RCVBUF)` to set SO_RCVBUF smaller than stream MSS, and smaller than maximum advertised window, then sender waits 200ms after receiving ACK before transmitting more payload ***when receiver transmits small window***.
+
+> The sender attempts to efficiently use network bandwidth through minimizing header overhead by waiting extra time (200ms) for the receiver to return an advertised window at least as large as the MSS or as large as the prior seen maximum advertised window.
+
+> If a receiver application connects, or accepts, connections transmitting a large initial receive buffer, then the initial advertised window will be large. If the application later calls setsockopt(SO_RCVBUF) with a value smaller than the connection's MSS (and thus also smaller than the initial advertised window) then the sender assumes the client will be returning to an advertised window above MSS and should wait to avoid congesting the network with needless traffic when the receiver is experiencing memory pressure for some unknown reason. (https://access.redhat.com/solutions/6481061)
 
 ```shell script
 ./server 55555 2048 2048 2048 2048 5579 79 0 1
@@ -56,33 +86,8 @@
 18:09:28.367018 56346 > 55555: ack 1028, win 512, length 0
 ```
 
-# Receiver-side
-
-## TCP window
-
-```
-RCV.NXT right edge
-     |  |
-   _______ RCV.BUFF
-12|34|56|7|89 - not available
-|  |  |  |
-|  |  |  available but not yet advertised
-|  |  advertised to sender (RCV.WND)
-|  received but not yet consumed (RCV.USER)
-received and consumed
-```
-
-* Receiver avoids advancing the right window edge in small increments (SWS avoidance).
-It still ACK-s the received data, such that the sender knows not to retransmit it.
-
-* Receiver keeps RCV.NXT+RCV.WND fixed until:
-```
-RCV.BUFF - RCV.USER - RCV.WND >= min( Fr * RCV.BUFF, Eff.snd.MSS )
-```
-
-* When the inequality is satisfied, RCV.WND is set to RCV.BUFF-RCV.USER. (https://www.ietf.org/rfc/rfc1122.txt)
-
-#### ex.
+* Receiver keeps descreasing the TCP window because it keeps the right edge fixed until the inequality is satisfied.
+Since `RCV.BUFF < RCV.WND`, the inequality will only satisfy when `RCV.WND` reaches 0.
 
 ```shell script
 ./server 55555 2048 2048 2048 2048 5579 79 0 1
@@ -117,8 +122,3 @@ RCV.WND -> RCV.BUFF - RCV.USER = 2048 = 16*(2^wscale 7)
 17:34:57.923059 56248 > 55555: seq 66949:67205, ack 949, win 512, length 256
 17:34:57.966946 55555 > 56248: ack 67205, win 16, length 0
 ```
-
-## ACK delay
-
-* Receiver waits for a packet on which the ACK can be piggybacked, if not getting it, sends the ACK delayed (up to 500 ms).
- Timer is reset after every recv.
