@@ -87,7 +87,7 @@ RCV.BUFF - RCV.USER - RCV.WND >= min( Fr * RCV.BUFF, Eff.snd.MSS )
 ```
 
 * Receiver keeps descreasing the TCP window because it keeps the right edge fixed until the inequality is satisfied.
-Since `RCV.BUFF < RCV.WND`, the inequality will only satisfy when `RCV.WND` reaches 0.
+Since `RCV.BUFF < RCV.WND`, the inequality will only satisfy when `RCV.WND` reaches one-half of `RCV.BUFF`.
 
 ```shell script
 ./server 55555 2048 2048 2048 2048 5579 79 0 1
@@ -122,3 +122,51 @@ RCV.WND -> RCV.BUFF - RCV.USER = 2048 = 16*(2^wscale 7)
 17:34:57.923059 56248 > 55555: seq 66949:67205, ack 949, win 512, length 256
 17:34:57.966946 55555 > 56248: ack 67205, win 16, length 0
 ```
+
+## TCP deadlock
+
+* The deadlock occurs when both the client and server are trying to send an amount of data that is larger than the combined input and output buffer size.
+A read cannot be finished if a write transaction is in progress, and vice versa.
+
+> For example, the server reads the first 4KB out of 200KB, and begins to send a 200KB response.
+After the first 2KB of the response is sent, the client's input buffer and the server's output buffer are both full, and the server cannot finish sending the response.
+The client hasn't finished sending the request, however, because the server's input buffer is also full.
+Since the server cannot read and write at the same time, it is stuck.
+Similarly, the client cannot read and write at the same time, so it is also stuck.
+A deadlock has formed, and there is no further communication across the TCP connection.
+(http://florin.bjdean.id.au/docs/omnimark/omni55/docs/html/concept/717.htm)
+
+```shell script
+./server 55555 1024 1024 1024 1024 4096 200000 0 1
+./client 55555 256 256 256 256 200000 200000 0 1
+
+13:23:35.584827 34724 > 55555: win 65495, mss 65495, wscale 7, length 0
+13:23:35.584842 55555 > 34724: win 65483, mss 65495, wscale 7, length 0
+13:23:35.584855 34724 > 55555: ack 1, win 512, length 0
+13:23:35.584908 34724 > 55555: seq 1:257, ack 1, win 512, length 256
+13:23:35.584920 55555 > 34724: ack 257, win 510, length 0
+13:23:35.584930 34724 > 55555: seq 257:513, ack 1, win 512, length 256
+13:23:35.584938 55555 > 34724: ack 513, win 508, length 0
+13:23:35.584942 34724 > 55555: seq 513:1025, ack 1, win 512, length 512
+13:23:35.584959 55555 > 34724: ack 1025, win 504, length 0
+13:23:35.584966 34724 > 55555: seq 1025:2049, ack 1, win 512, length 1024
+13:23:35.585752 34724 > 55555: seq 2049:34790, ack 1, win 512, length 32741
+13:23:35.585759 55555 > 34724: ack 34790, win 241, length 0
+13:23:35.585769 34724 > 55555: seq 34790:35046, ack 1, win 512, length 256
+13:23:35.585787 55555 > 34724: seq 1:1025, ack 35046, win 239, length 1024
+13:23:35.585792 34724 > 55555: seq 35046:35558, ack 1025, win 504, length 512
+13:23:35.585817 55555 > 34724: seq 1025:2049, ack 35046, win 239, length 1024
+13:23:35.586031 55555 > 34724: seq 2049:34817, ack 35046, win 239, length 32768
+-- server fails to send 32768B --
+-- client fails to send 512B --
+-- retransmits start --
+13:23:35.598963 55555 > 34724: seq 2049:34817, ack 35046, win 239, length 32768
+13:23:35.630948 34724 > 55555: ack 2049, win 496, length 0
+13:23:35.790937 34724 > 55555: seq 35046:35558, ack 2049, win 496, length 512
+13:23:35.850945 55555 > 34724: seq 2049:34817, ack 35046, win 239, length 32768
+13:23:35.998938 34724 > 55555: seq 35046:35558, ack 2049, win 496, length 512
+13:23:36.294956 55555 > 34724: seq 2049:34817, ack 35046, win 239, length 32768
+...
+```
+* For both client and server `send()` gives `EAGAIN / 11 / Resource temporarily unavailable` if non-blocking (O_NONBLOCK).
+After around 15min `send()` gives `ETIMEDOUT / 110 / Connection timed out`.
