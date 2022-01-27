@@ -187,6 +187,13 @@ auto Socket::SetNoDelay(int flag) -> bool {
 auto Socket::SetRcvBuf(uint32_t receiveBuffer) -> bool {
   bool result = false;
 
+  uint32_t value;
+  socklen_t valueLength = sizeof(value);
+
+  if (::getsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (char*)&value, &valueLength) == 0) {
+    LOG("[%d] initial is %d", _fd, value);
+  }
+
   if (::setsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (const char *) &receiveBuffer, sizeof(receiveBuffer)) == -1) {
     LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
   } else {
@@ -202,6 +209,13 @@ auto Socket::SetRcvBuf(uint32_t receiveBuffer) -> bool {
 
 auto Socket::SetSndBuf(uint32_t sendBuffer) -> bool {
   bool result = false;
+
+  uint32_t value;
+  socklen_t valueLength = sizeof(value);
+
+  if (::getsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (char*)&value, &valueLength) == 0) {
+    LOG("[%d] initial is %d", _fd, value);
+  }
 
   if (::setsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (const char *) &sendBuffer, sizeof(sendBuffer)) == -1) {
     LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));

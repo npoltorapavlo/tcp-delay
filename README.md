@@ -86,8 +86,9 @@ RCV.BUFF - RCV.USER - RCV.WND >= min( Fr * RCV.BUFF, Eff.snd.MSS )
 18:09:28.367018 56346 > 55555: ack 1028, win 512, length 0
 ```
 
-* Receiver keeps descreasing the TCP window because it keeps the right edge fixed until the inequality is satisfied.
-Since `RCV.BUFF < RCV.WND`, the inequality will only satisfy when `RCV.WND` reaches one-half of `RCV.BUFF`.
+* As per https://www.ietf.org/rfc/rfc1122.txt, the receiver avoids advancing the right window edge until inequality is satisfied.
+Since RCV.BUFF < RCV.WND, the inequality is satisfied when RCV.WND reaches one-half of RCV.BUFF.
+Then RCV.WND is set to RCV.BUFF.
 
 ```shell script
 ./server 55555 2048 2048 2048 2048 5579 79 0 1
@@ -170,3 +171,4 @@ A deadlock has formed, and there is no further communication across the TCP conn
 ```
 * For both client and server `send()` gives `EAGAIN / 11 / Resource temporarily unavailable` if non-blocking (O_NONBLOCK).
 After around 15min `send()` gives `ETIMEDOUT / 110 / Connection timed out`.
+The problem is only applicable if retry `send()` or `send()` in a loop.
