@@ -190,16 +190,29 @@ auto Socket::SetRcvBuf(uint32_t receiveBuffer) -> bool {
   uint32_t value;
   socklen_t valueLength = sizeof(value);
 
-  if (::getsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (char*)&value, &valueLength) == 0) {
+  if (::getsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (char *) &value, &valueLength) == 0) {
     LOG("[%d] initial is %d", _fd, value);
+  } else {
+    LOG("[%d] get err %d (%s)", _fd, errno, strerror(errno));
+
+    value = 0;
   }
 
-  if (::setsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (const char *) &receiveBuffer, sizeof(receiveBuffer)) == -1) {
-    LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-  } else {
-    LOG("[%d] %d", _fd, receiveBuffer);
+  if (receiveBuffer != 0) {
+    if (::setsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (const char *) &receiveBuffer, sizeof(receiveBuffer)) == -1) {
+      LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+    } else {
+      LOG("[%d] %d", _fd, receiveBuffer);
 
-    _receiveBuffer = receiveBuffer;
+      _receiveBuffer = receiveBuffer;
+
+      result = true;
+    }
+  } else {
+
+    // keep default
+
+    _receiveBuffer = value;
 
     result = true;
   }
@@ -213,16 +226,29 @@ auto Socket::SetSndBuf(uint32_t sendBuffer) -> bool {
   uint32_t value;
   socklen_t valueLength = sizeof(value);
 
-  if (::getsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (char*)&value, &valueLength) == 0) {
+  if (::getsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (char *) &value, &valueLength) == 0) {
     LOG("[%d] initial is %d", _fd, value);
+  } else {
+    LOG("[%d] get err %d (%s)", _fd, errno, strerror(errno));
+
+    value = 0;
   }
 
-  if (::setsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (const char *) &sendBuffer, sizeof(sendBuffer)) == -1) {
-    LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-  } else {
-    LOG("[%d] %d", _fd, sendBuffer);
+  if (sendBuffer != 0) {
+    if (::setsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (const char *) &sendBuffer, sizeof(sendBuffer)) == -1) {
+      LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+    } else {
+      LOG("[%d] %d", _fd, sendBuffer);
 
-    _sendBuffer = sendBuffer;
+      _sendBuffer = sendBuffer;
+
+      result = true;
+    }
+  } else {
+
+    // keep default
+
+    _sendBuffer = value;
 
     result = true;
   }
