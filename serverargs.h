@@ -9,6 +9,8 @@ struct ServerArgs {
   uint16_t port;
   size_t receiveBuffer;
   size_t sendBuffer;
+  size_t acceptReceiveBuffer;
+  size_t acceptSendBuffer;
   size_t appReceiveBuffer;
   size_t appSendBuffer;
   size_t expectedReceiveLength;

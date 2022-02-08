@@ -5,8 +5,8 @@
 * If there is unacknowledged data, then the sending TCP buffers all user data (regardless of the PSH bit), until the outstanding data has been acknowledged or until the TCP can send a full-sized segment (Eff.snd.MSS bytes). (https://www.ietf.org/rfc/rfc1122.txt)
 
 ```shell script
-./server 55555 1024 1024 1024 1024 5579 79 0 1
-./client 55555 256 256 256 256 79 5579 0 1
+./server 55555 0 0 1024 1024 1024 1024 5579 79 0 1
+./client 55555 0 0 256 256 256 256 79 5579 0 1
 
 12:35:12.204341 52746 > 55555: length 256
 12:35:12.204346 55555 > 52746: ack 257, win 510, length 0
@@ -61,8 +61,8 @@ RCV.BUFF - RCV.USER - RCV.WND >= min( Fr * RCV.BUFF, Eff.snd.MSS )
 > If a receiver application connects, or accepts, connections transmitting a large initial receive buffer, then the initial advertised window will be large. If the application later calls setsockopt(SO_RCVBUF) with a value smaller than the connection's MSS (and thus also smaller than the initial advertised window) then the sender assumes the client will be returning to an advertised window above MSS and should wait to avoid congesting the network with needless traffic when the receiver is experiencing memory pressure for some unknown reason. (https://access.redhat.com/solutions/6481061)
 
 ```shell script
-./server 55555 2048 2048 2048 2048 5579 79 0 1
-./client 55555 256 5579 256 5579 79 5579 0 100
+./server 55555 0 0 2048 2048 2048 2048 5579 79 0 1
+./client 55555 0 0 256 5579 256 5579 79 5579 0 100
 
 18:09:27.946953 56346 > 55555: seq 61370:66234, ack 870, win 512, length 4864
 18:09:27.946964 55555 > 56346: ack 66234, win 0, length 0
@@ -91,8 +91,8 @@ Since RCV.BUFF < RCV.WND, the inequality is satisfied when RCV.WND reaches one-h
 Then RCV.WND is set to RCV.BUFF.
 
 ```shell script
-./server 55555 2048 2048 2048 2048 5579 79 0 1
-./client 55555 256 256 256 256 79 5579 0 100
+./server 55555 0 0 2048 2048 2048 2048 5579 79 0 1
+./client 55555 0 0 256 256 256 256 79 5579 0 100
 
 17:34:57.667398 56248 > 55555: seq 61370:61626, ack 870, win 512, length 256
 17:34:57.667423 55555 > 56248: ack 61626, win 37, length 0
@@ -138,8 +138,8 @@ A deadlock has formed, and there is no further communication across the TCP conn
 (http://florin.bjdean.id.au/docs/omnimark/omni55/docs/html/concept/717.htm)
 
 ```shell script
-./server 55555 1024 1024 1024 1024 4096 200000 0 1
-./client 55555 256 256 256 256 200000 200000 0 1
+./server 55555 0 0 1024 1024 1024 1024 4096 200000 0 1
+./client 55555 0 0 256 256 256 256 200000 200000 0 1
 
 13:23:35.584827 34724 > 55555: win 65495, mss 65495, wscale 7, length 0
 13:23:35.584842 55555 > 34724: win 65483, mss 65495, wscale 7, length 0

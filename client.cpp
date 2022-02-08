@@ -8,11 +8,22 @@ auto main(int argc, char **argv) -> int {
   TestSocket socket;
 
   if (socket.Create() &&
-      ((args.noDelay == 0) || socket.SetNoDelay(args.noDelay)) &&
-      socket.Connect(args.port) && // block until connected
-      socket.SetNonBlocking() &&
+
+      // setup before connect
+
       socket.SetRcvBuf(args.receiveBuffer) &&
-      socket.SetSndBuf(args.sendBuffer)) {
+      socket.SetSndBuf(args.sendBuffer) &&
+      ((args.noDelay == 0) || socket.SetNoDelay(args.noDelay)) &&
+
+      // block until connected
+
+      socket.Connect(args.port) &&
+
+      // setup after connect
+
+      socket.SetNonBlocking() &&
+      socket.SetRcvBuf(args.connectReceiveBuffer) &&
+      socket.SetSndBuf(args.connectSendBuffer)) {
 
     socket.SetAppRcvBuf(args.appReceiveBuffer);
     socket.SetAppSndBuf(args.appSendBuffer);

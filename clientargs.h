@@ -9,6 +9,8 @@ struct ClientArgs {
   uint16_t port;
   size_t receiveBuffer;
   size_t sendBuffer;
+  size_t connectReceiveBuffer;
+  size_t connectSendBuffer;
   size_t appReceiveBuffer;
   size_t appSendBuffer;
   size_t expectedReceiveLength;
