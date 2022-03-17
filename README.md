@@ -15,7 +15,8 @@ sudo tcpdump -i lo port 55555 > Logs/nagle.log
 sleep 5 &&
 ./client 55555 0 0 256 256 256 256 79 5579 0 1
 ```
-[Logs/nagle.log](Logs/nagle.log)
+
+[nagle.log](Logs/nagle.log)
 
 ## ACK delays
 
@@ -83,7 +84,7 @@ sleep 5 &&
 ./client 55555 0 0 256 5579 256 5579 79 5579 0 100
 ```
 
-[Logs/delays200ms.log](Logs/delays200ms.log)
+[delays200ms.log](Logs/delays200ms.log)
 
 ## TCP deadlock
 
@@ -100,4 +101,4 @@ sleep 5 &&
 ./client 55555 0 0 256 256 256 256 200000 200000 0 1
 ```
 
-[Logs/deadlock.log](Logs/deadlock.log)
+[deadlock.log](Logs/deadlock.log)
