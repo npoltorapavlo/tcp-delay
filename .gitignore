@@ -12,3 +12,5 @@ _deps
 
 /Source/server
 /Source/client
+/server
+/client
