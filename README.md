@@ -1,6 +1,6 @@
 # TCP algorithms
 
-## Nagle's (sender)
+## Nagle's
 
 > If there is unacknowledged data,
 > then the sending TCP buffers all user data (regardless of the PSH bit),
@@ -17,13 +17,13 @@ sleep 5 &&
 ```
 [Logs/nagle.log](Logs/nagle.log)
 
-## ACK delays (receiver)
+## ACK delays
 
 > Receiver waits for a packet on which the ACK can be piggybacked,
 > if not getting it, sends the ACK delayed (up to 500 ms).
 > Timer is reset after every recv.
 
-## TCP window (receiver)
+## TCP window
 
 ```
 RCV.NXT right edge
@@ -72,7 +72,7 @@ https://www.ietf.org/rfc/rfc1122.txt
 
 https://access.redhat.com/solutions/6481061
 
-> Since RCV.BUFF < RCV.WND, the [inequality](#TCP-window-(receiver))
+> Since RCV.BUFF < RCV.WND, the [inequality](#tcp-window)
 > is satisfied when RCV.WND reaches one-half of RCV.BUFF.
 > Then RCV.WND is set to RCV.BUFF.
 
