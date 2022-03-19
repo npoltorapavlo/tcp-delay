@@ -1,10 +1,8 @@
 #include "socket.h"
 
-#include "timestamp.h"
-
-#include <sys/socket.h>
-#include <netinet/tcp.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
 
 #include <fcntl.h>
 
@@ -13,259 +11,277 @@
 #include <cstring>
 #include <unistd.h>
 
-#define LOG(fmt, ...) printf("%s [%s] " fmt "\n", Timestamp::Instance().Value(), __func__, ##__VA_ARGS__);
+#define LOG(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__);
 
 Socket::Socket()
-    : _fd(-1), _receiveBuffer(0), _sendBuffer(0) {
+    : _fd(-1)
+    , _receiveBuffer(0)
+    , _sendBuffer(0)
+{
 }
 
 Socket::Socket(int new_fd)
-    : _fd(new_fd), _receiveBuffer(0), _sendBuffer(0) {
+    : _fd(new_fd)
+    , _receiveBuffer(0)
+    , _sendBuffer(0)
+{
 }
 
-Socket::~Socket() {
-  LOG("[%d]", _fd);
-
-  if (_fd != -1) {
-    Close();
-  }
-}
-
-auto Socket::Create() -> bool {
-  bool result = false;
-
-  if ((_fd = ::socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-  } else {
+Socket::~Socket()
+{
     LOG("[%d]", _fd);
 
-    int opt = 1;
-    if (::setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) == -1) {
-      LOG("[%d] setsockopt err %d (%s)", _fd, errno, strerror(errno));
+    if (_fd != -1) {
+        Close();
     }
-
-    result = true;
-  }
-
-  return (result);
 }
 
-auto Socket::Connect(uint16_t port) -> bool {
-  bool result = false;
+auto Socket::Create() -> bool
+{
+    bool result = false;
 
-  struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = htons(port);
-
-  if (::connect(_fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-    LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-  } else {
-    LOG("[%d]", _fd);
-
-    result = true;
-  }
-
-  return (result);
-}
-
-auto Socket::Listen(uint16_t port, int backlog) -> bool {
-  bool result = false;
-
-  struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = htons(port);
-
-  if (::bind(_fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-    LOG("[%d] bind err %d (%s)", _fd, errno, strerror(errno));
-  } else if (::listen(_fd, backlog) == -1) {
-    LOG("[%d] listen err %d (%s)", _fd, errno, strerror(errno));
-  } else {
-    LOG("[%d]", _fd);
-
-    result = true;
-  }
-
-  return (result);
-}
-
-auto Socket::Accept(bool &eagain) -> int {
-  struct sockaddr address;
-  socklen_t addrlen = sizeof(address);
-
-  int new_fd = ::accept(_fd, &address, (socklen_t * ) & addrlen);
-
-  if (new_fd == -1) {
-    if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-
-      // there's nothing to accept at the moment
-
-      eagain = true;
+    if ((_fd = ::socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
     } else {
-      LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-    }
-  } else {
-    LOG("[%d] %d", _fd, new_fd);
-  }
+        LOG("[%d]", _fd);
 
-  return (new_fd);
+        int opt = 1;
+        if (::setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) == -1) {
+            LOG("[%d] setsockopt err %d (%s)", _fd, errno, strerror(errno));
+        }
+
+        result = true;
+    }
+
+    return (result);
 }
 
-auto Socket::Receive(void *buf, size_t len, bool &eagain) -> ssize_t {
-  ssize_t result;
+auto Socket::Connect(uint16_t port) -> bool
+{
+    bool result = false;
 
-  result = ::recv(_fd, buf, len, 0);
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
 
-  if (result == -1) {
-    if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-
-      // there's nothing to receive at the moment
-
-      eagain = true;
+    if (::connect(_fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
     } else {
-      LOG("[%d] recv err %d (%s)", _fd, errno, strerror(errno));
-    }
-  } else if (result == 0) {
-    LOG("[%d] eof/zero-length", _fd);
-  } else {
-    LOG("[%d] %ld bytes (buffer %ld)", _fd, result, len);
-  }
+        LOG("[%d]", _fd);
 
-  return (result);
+        result = true;
+    }
+
+    return (result);
 }
 
-auto Socket::Write(const void *buf, size_t len, bool &eagain) -> ssize_t {
-  ssize_t result;
+auto Socket::Listen(uint16_t port, int backlog) -> bool
+{
+    bool result = false;
 
-  result = ::send(_fd, buf, len, 0);
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
 
-  if (result == -1) {
-    if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-
-      // output buffer is full
-
-      eagain = true;
+    if (::bind(_fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        LOG("[%d] bind err %d (%s)", _fd, errno, strerror(errno));
+    } else if (::listen(_fd, backlog) == -1) {
+        LOG("[%d] listen err %d (%s)", _fd, errno, strerror(errno));
     } else {
-      LOG("[%d] send err %d (%s)", _fd, errno, strerror(errno));
+        LOG("[%d]", _fd);
+
+        result = true;
     }
-  } else {
-    LOG("[%d] %ld bytes (of %ld)", _fd, result, len);
-  }
 
-  return (result);
+    return (result);
 }
 
-auto Socket::Close() -> bool {
-  bool result = false;
+auto Socket::Accept(bool& eagain) -> int
+{
+    struct sockaddr address;
+    socklen_t addrlen = sizeof(address);
 
-  if (::close(_fd) == -1) {
-    LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-  } else {
-    LOG("[%d]", _fd);
+    int new_fd = ::accept(_fd, &address, (socklen_t*)&addrlen);
 
-    result = true;
-  }
+    if (new_fd == -1) {
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
 
-  return (result);
-}
+            // there's nothing to accept at the moment
 
-auto Socket::SetNoDelay(int flag) -> bool {
-  bool result = false;
-
-  if (::setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int)) == -1) {
-    LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-  } else {
-    LOG("[%d] %d", _fd, flag);
-
-    result = true;
-  }
-
-  return (result);
-}
-
-auto Socket::SetRcvBuf(uint32_t receiveBuffer) -> bool {
-  bool result = false;
-
-  uint32_t value;
-  socklen_t valueLength = sizeof(value);
-
-  if (::getsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (char *) &value, &valueLength) == 0) {
-    LOG("[%d] initial is %d", _fd, value);
-  } else {
-    LOG("[%d] get err %d (%s)", _fd, errno, strerror(errno));
-
-    value = 0;
-  }
-
-  if (receiveBuffer != 0) {
-    if (::setsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (const char *) &receiveBuffer, sizeof(receiveBuffer)) == -1) {
-      LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+            eagain = true;
+        } else {
+            LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+        }
     } else {
-      LOG("[%d] %d", _fd, receiveBuffer);
-
-      _receiveBuffer = receiveBuffer;
-
-      result = true;
+        LOG("[%d] %d", _fd, new_fd);
     }
-  } else {
 
-    // keep default
-
-    _receiveBuffer = value;
-
-    result = true;
-  }
-
-  return (result);
+    return (new_fd);
 }
 
-auto Socket::SetSndBuf(uint32_t sendBuffer) -> bool {
-  bool result = false;
+auto Socket::Receive(void* buf, size_t len, bool& eagain) -> ssize_t
+{
+    ssize_t result;
 
-  uint32_t value;
-  socklen_t valueLength = sizeof(value);
+    result = ::recv(_fd, buf, len, 0);
 
-  if (::getsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (char *) &value, &valueLength) == 0) {
-    LOG("[%d] initial is %d", _fd, value);
-  } else {
-    LOG("[%d] get err %d (%s)", _fd, errno, strerror(errno));
+    if (result == -1) {
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
 
-    value = 0;
-  }
+            // there's nothing to receive at the moment
 
-  if (sendBuffer != 0) {
-    if (::setsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (const char *) &sendBuffer, sizeof(sendBuffer)) == -1) {
-      LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+            eagain = true;
+        } else {
+            LOG("[%d] recv err %d (%s)", _fd, errno, strerror(errno));
+        }
+    } else if (result == 0) {
+        LOG("[%d] eof/zero-length", _fd);
     } else {
-      LOG("[%d] %d", _fd, sendBuffer);
-
-      _sendBuffer = sendBuffer;
-
-      result = true;
+        LOG("[%d] %ld bytes (buffer %ld)", _fd, result, len);
     }
-  } else {
 
-    // keep default
-
-    _sendBuffer = value;
-
-    result = true;
-  }
-
-  return (result);
+    return (result);
 }
 
-auto Socket::SetNonBlocking() -> bool {
-  bool result = false;
+auto Socket::Write(const void* buf, size_t len, bool& eagain) -> ssize_t
+{
+    ssize_t result;
 
-  if (::fcntl(_fd, F_SETFL, fcntl(_fd, F_GETFL, 0) | O_NONBLOCK) != 0) {
-    LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
-  } else {
-    LOG("[%d]", _fd);
+    result = ::send(_fd, buf, len, 0);
 
-    result = true;
-  }
+    if (result == -1) {
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
 
-  return (result);
+            // output buffer is full
+
+            eagain = true;
+        } else {
+            LOG("[%d] send err %d (%s)", _fd, errno, strerror(errno));
+        }
+    } else {
+        LOG("[%d] %ld bytes (of %ld)", _fd, result, len);
+    }
+
+    return (result);
+}
+
+auto Socket::Close() -> bool
+{
+    bool result = false;
+
+    if (::close(_fd) == -1) {
+        LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+    } else {
+        LOG("[%d]", _fd);
+
+        result = true;
+    }
+
+    return (result);
+}
+
+auto Socket::SetNoDelay(int flag) -> bool
+{
+    bool result = false;
+
+    if (::setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, sizeof(int)) == -1) {
+        LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+    } else {
+        LOG("[%d] %d", _fd, flag);
+
+        result = true;
+    }
+
+    return (result);
+}
+
+auto Socket::SetRcvBuf(uint32_t receiveBuffer) -> bool
+{
+    bool result = false;
+
+    uint32_t value;
+    socklen_t valueLength = sizeof(value);
+
+    if (::getsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (char*)&value, &valueLength) == 0) {
+        LOG("[%d] initial is %d", _fd, value);
+    } else {
+        LOG("[%d] get err %d (%s)", _fd, errno, strerror(errno));
+
+        value = 0;
+    }
+
+    if (receiveBuffer != 0) {
+        if (::setsockopt(_fd, SOL_SOCKET, SO_RCVBUF, (const char*)&receiveBuffer, sizeof(receiveBuffer)) == -1) {
+            LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+        } else {
+            LOG("[%d] %d", _fd, receiveBuffer);
+
+            _receiveBuffer = receiveBuffer;
+
+            result = true;
+        }
+    } else {
+
+        // keep default
+
+        _receiveBuffer = value;
+
+        result = true;
+    }
+
+    return (result);
+}
+
+auto Socket::SetSndBuf(uint32_t sendBuffer) -> bool
+{
+    bool result = false;
+
+    uint32_t value;
+    socklen_t valueLength = sizeof(value);
+
+    if (::getsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (char*)&value, &valueLength) == 0) {
+        LOG("[%d] initial is %d", _fd, value);
+    } else {
+        LOG("[%d] get err %d (%s)", _fd, errno, strerror(errno));
+
+        value = 0;
+    }
+
+    if (sendBuffer != 0) {
+        if (::setsockopt(_fd, SOL_SOCKET, SO_SNDBUF, (const char*)&sendBuffer, sizeof(sendBuffer)) == -1) {
+            LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+        } else {
+            LOG("[%d] %d", _fd, sendBuffer);
+
+            _sendBuffer = sendBuffer;
+
+            result = true;
+        }
+    } else {
+
+        // keep default
+
+        _sendBuffer = value;
+
+        result = true;
+    }
+
+    return (result);
+}
+
+auto Socket::SetNonBlocking() -> bool
+{
+    bool result = false;
+
+    if (::fcntl(_fd, F_SETFL, fcntl(_fd, F_GETFL, 0) | O_NONBLOCK) != 0) {
+        LOG("[%d] err %d (%s)", _fd, errno, strerror(errno));
+    } else {
+        LOG("[%d]", _fd);
+
+        result = true;
+    }
+
+    return (result);
 }
